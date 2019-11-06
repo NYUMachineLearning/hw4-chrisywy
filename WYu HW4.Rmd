@@ -1,0 +1,119 @@
+---
+title: 'HW4 - Machine Learning 2019: Feature Selection'
+author: "Wuyue Yu"
+date: "Nov 5, 2019"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Feature Selection 
+
+```{r load relevant libraries, include=FALSE}
+library(tidyverse)
+library(caret)
+library(randomForest)
+library(mlbench)
+library(glmnet)
+```
+
+1. Compare the most important features from at least 2 different classes of feature selection methods covered in this tutorial with any reasonable machine learning dataset from mlbench. Do these feature selection methods provide similar results? 
+
+## The Glass Dataset     
+214 Observations, 10 variables      
+Predictor Variable: Type - 1,2,3,5,6,7 
+
+```{r load Glass dataset}
+data(Glass)
+head(Glass)
+dim(Glass)
+
+Types <- Glass[,10]
+levels(Glass[,10]) <- c("I", "II", "III", "V", "VI", "VII")
+
+# Change type variables to avoid error
+summary(Glass$Type)
+```
+
+## Feature Selection Using Filter Methods: Pearson's Correlation 
+
+```{r correlation}
+Glass_num = Glass
+Glass_num[is.na(Glass_num)] = 0
+
+#calculate correlation matrix using pearson correlation (others include spearman and kendall)
+correlation_matrix = cor(Glass_num[,1:9])
+
+#visualize correlation matrix
+library(corrplot)
+corrplot(correlation_matrix, order = "hclust")
+
+#apply correlation filter of 0.7
+highly_correlated <- colnames(Glass[, -1])[findCorrelation(correlation_matrix, cutoff = 0.7, verbose = TRUE)]
+
+#which features are highly correlated and can be removed
+highly_correlated
+```
+## Feature Selection Using Wrapper Methods: Recursive Feature Elimination (RFE)
+
+```{r RFE}
+set.seed(21)
+
+#define the control 
+control = rfeControl(functions = caretFuncs, number = 2)
+
+# run the RFE algorithm
+results = rfe(Glass_num[,1:9], Glass_num[,10], sizes = c(2:9), rfeControl = control, method = "svmRadial")
+
+results
+results$variables
+```
+
+## Feature Selection Using Embedded Methods: RandomForest
+
+```{r importance}
+#data
+train_size <- floor(0.75 * nrow(Glass))
+set.seed(2)
+train_pos <- sample(seq_len(nrow(Glass)), size = train_size)
+
+
+train_classification <- Glass_num[train_pos, ]
+test_classification <- Glass_num[-train_pos, ]
+
+#fit a model
+rfmodel = randomForest(Type ~ ., data=train_classification,  importance = TRUE, oob.times = 15, confusion = TRUE)
+
+#rank features based on importance 
+importance(rfmodel)
+# Create a plot of importance scores by random forest
+varImpPlot(rfmodel)
+
+```
+
+The feature selection methods provide relatively similar results.         
+- Pearson's correlation suggests that Ba could be removed.        
+- Recursive Feature Elimination selected Mg, Al, Ca, Na, K       
+- Random Forest indicates that the most important five are Mg, Al, RI, Na, Ca, with K being the next      
+
+
+2. Attempt a feature selection method not covered in this tutorial (backward elimination, forward propogation, etc.)     
+## Feature Selection Using backward elimination
+
+```{r}
+#
+Glass_model = Glass
+Glass_model$Type <- as.numeric(as.character(Types))
+fullmodel <- lm(Type ~ . , data = Glass_model)
+step(fullmodel, direction = "backward", trace=FALSE) 
+```
+
+Model selected Na, Mg, Al, Si and Ba
+
+
+
