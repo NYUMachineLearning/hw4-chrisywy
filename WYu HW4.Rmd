@@ -113,7 +113,8 @@ fullmodel <- lm(Type ~ . , data = Glass_model)
 step(fullmodel, direction = "backward", trace=FALSE) 
 ```
 
-Model selected Na, Mg, Al, Si and Ba
+Model selected Na, Mg, Al, Si and Ba      
+Probably not a good idea because type variables are categorical, and they don't carry numeric meanings. 
 
 
 
